@@ -1,8 +1,533 @@
-# Screeps Moss 项目 - 架构设计文档（完整版）
+# Screeps Moss 项目 - 架构设计文档（概要设计）
 
-## 6. 数据流设计（续）
+## 📋 文档信息
+- **项目名称**: Screeps Moss
+- **文档类型**: 架构设计文档（概要设计）
+- **版本**: v1.0
+- **创建日期**: 2026-03-22
+- **最后更新**: 2026-03-22
+- **负责人**: Moss (OpenClaw AI)
+- **状态**: 设计中
+- **关联文档**: 
+  - `REQUIREMENTS_ANALYSIS.md` (v2.0) - 需求分析
+  - `DETAILED_DESIGN.md` (v1.0) - 详细设计
 
-### 6.1.3 Creep管理数据流（续）
+---
+
+## 1. 架构概述
+
+### 1.1 设计目标
+基于需求分析文档，设计满足以下目标的系统架构：
+1. **模块化**: 功能解耦，支持独立开发和测试
+2. **高性能**: 在CPU/内存严格约束下优化性能
+3. **可扩展性**: 支持从单房间到多房间平滑扩展
+4. **高可靠性**: 容错设计，自动恢复，99.9%可用性
+5. **易维护性**: 代码清晰，文档完整，易于维护
+
+### 1.2 架构原则
+| 原则 | 描述 | 在架构中的应用 |
+|------|------|----------------|
+| **单一职责** | 每个模块只负责一个功能领域 | 模块按功能领域划分 |
+| **开闭原则** | 对扩展开放，对修改关闭 | 通过配置和插件扩展功能 |
+| **依赖倒置** | 依赖抽象而非具体实现 | 模块通过接口通信 |
+| **接口隔离** | 客户端不应依赖不需要的接口 | 细粒度接口设计 |
+| **迪米特法则** | 最少知识原则 | 减少模块间直接依赖 |
+
+### 1.3 技术约束应对
+| 约束 | 影响 | 架构应对策略 |
+|------|------|--------------|
+| **CPU限制** | 算法复杂度受限 | 分层计算，任务优先级，缓存机制 |
+| **内存限制** | 数据存储受限 | 结构化存储，定期清理，数据压缩 |
+| **API限制** | 操作效率受限 | 批量操作，异步处理，API优化 |
+| **实时性** | 必须在tick内完成 | 任务调度，超时处理，降级策略 |
+
+---
+
+## 2. 系统总体架构
+
+### 2.1 架构分层
+```
+┌─────────────────────────────────────────────────┐
+│               应用层 (Application Layer)        │
+│  • 房间管理器 (RoomManager)                     │
+│  • 全局协调器 (GlobalCoordinator) - 未来扩展    │
+├─────────────────────────────────────────────────┤
+│               业务层 (Business Layer)           │
+│  • 能量管理器 (EnergyManager)                   │
+│  • Creep管理器 (CreepManager)                   │
+│  • 角色管理器 (RoleManager)                     │
+│  • 建筑管理器 (BuildingManager)                 │
+│  • 防御管理器 (DefenseManager)                  │
+├─────────────────────────────────────────────────┤
+│               服务层 (Service Layer)            │
+│  • 配置服务 (ConfigService)                     │
+│  • 内存服务 (MemoryService)                     │
+│  • 日志服务 (LogService)                        │
+│  • 监控服务 (MonitorService)                    │
+│  • 性能服务 (ProfilerService)                   │
+├─────────────────────────────────────────────────┤
+│               数据层 (Data Layer)               │
+│  • 游戏状态数据 (GameState)                     │
+│  • 配置数据 (ConfigData)                        │
+│  • 历史数据 (HistoricalData)                    │
+│  • 监控数据 (MonitorData)                       │
+└─────────────────────────────────────────────────┘
+```
+
+### 2.2 架构组件说明
+
+#### 2.2.1 应用层组件
+| 组件 | 职责 | 关键特性 |
+|------|------|----------|
+| **RoomManager** | 房间生命周期管理 | 单房间实例，协调业务模块 |
+| **GlobalCoordinator** | 多房间全局协调 | 未来扩展，资源平衡，策略协调 |
+
+#### 2.2.2 业务层组件
+| 组件 | 职责 | 关键特性 |
+|------|------|----------|
+| **EnergyManager** | 能量采集、存储、分配 | 供应链优化，优先级调度 |
+| **CreepManager** | Creep生成、管理 | 需求分析，生命周期管理 |
+| **RoleManager** | 角色分配、任务调度 | 状态机管理，效率优化 |
+| **BuildingManager** | 建筑规划、建造、维护 | 自动布局，优先级建造 |
+| **DefenseManager** | 入侵检测、防御 | 威胁评估，自动响应 |
+
+#### 2.2.3 服务层组件
+| 组件 | 职责 | 关键特性 |
+|------|------|----------|
+| **ConfigService** | 配置管理 | 配置加载，验证，热更新 |
+| **MemoryService** | 内存管理 | 清理，持久化，压缩 |
+| **LogService** | 日志记录 | 分级日志，结构化，查询 |
+| **MonitorService** | 状态监控 | 实时监控，告警，报告 |
+| **ProfilerService** | 性能分析 | 性能监控，优化建议 |
+
+### 2.3 架构视图
+
+#### 2.3.1 逻辑视图
+```
+玩家/系统 → RoomManager → 业务模块 → 游戏API
+    ↓           ↓            ↓          ↓
+配置服务 ← 监控服务 ← 日志服务 ← 性能服务
+```
+
+#### 2.3.2 开发视图
+```
+src/
+├── core/           # 核心框架
+├── managers/       # 业务管理器
+├── services/       # 支撑服务
+├── plugins/        # 插件系统
+└── utils/          # 工具函数
+```
+
+#### 2.3.3 部署视图
+```
+开发环境 → 测试环境 → 预发布环境 → 生产环境
+    ↓          ↓           ↓           ↓
+本地测试 → 沙盒测试 → 游戏测试 → 正式运行
+```
+
+---
+
+## 3. 模块划分和职责
+
+### 3.1 核心模块划分
+
+#### 3.1.1 房间管理模块 (RoomManager)
+**职责**: 协调房间内所有活动
+**接口**:
+- `initRoom(roomName)`: 初始化房间
+- `tickRoom(roomName)`: 处理房间tick
+- `cleanupRoom(roomName)`: 清理房间资源
+
+**依赖**: 所有业务模块
+
+#### 3.1.2 能量管理模块 (EnergyManager)
+**职责**: 管理能量供应链
+**接口**:
+- `analyzeEnergyStatus(roomName)`: 分析能量状态
+- `allocateEnergy(roomName, purpose, amount)`: 分配能量
+- `monitorEnergyFlow(roomName)`: 监控能量流
+
+**依赖**: MemoryService, LogService
+
+#### 3.1.3 Creep管理模块 (CreepManager)
+**职责**: 管理Creep生命周期
+**接口**:
+- `analyzeCreepNeeds(roomName)`: 分析Creep需求
+- `spawnCreep(roomName, role)`: 生成Creep
+- `manageLifecycle(roomName)`: 管理生命周期
+
+**依赖**: EnergyManager, RoleManager, ConfigService
+
+### 3.2 服务模块划分
+
+#### 3.2.1 配置服务 (ConfigService)
+**职责**: 管理系统配置
+**接口**:
+- `getConfig(key, defaultValue)`: 获取配置
+- `updateConfig(key, value)`: 更新配置
+- `validateConfig(config)`: 验证配置
+
+**依赖**: 无
+
+#### 3.2.2 内存服务 (MemoryService)
+**职责**: 管理游戏内存
+**接口**:
+- `cleanupMemory()`: 清理无效内存
+- `persistState(key, data)`: 持久化状态
+- `compressData(data)`: 压缩数据
+
+**依赖**: 无
+
+### 3.3 模块间关系
+```
+RoomManager (协调者)
+    ├── EnergyManager (能量供应)
+    │       ├── CreepManager (单位生成)
+    │       └── BuildingManager (建筑建造)
+    ├── RoleManager (行为控制)
+    └── 服务层 (支撑服务)
+```
+
+---
+
+## 4. 关键技术决策
+
+### 4.1 技术栈选型
+| 技术领域 | 选型 | 理由 | 备选方案 |
+|----------|------|------|----------|
+| **开发语言** | JavaScript (ES6+) | 游戏环境强制要求 | 无 |
+| **设计模式** | 工厂、策略、观察者、状态 | 适合游戏AI场景 | 命令、模板方法 |
+| **架构风格** | 分层架构 + 模块化 | 清晰分离关注点 | 微内核、事件驱动 |
+| **数据存储** | Game.memory + 结构化 | 游戏环境限制 | 外部存储(未来) |
+
+### 4.2 设计模式应用
+
+#### 4.2.1 工厂模式 - Creep生成
+```javascript
+// Creep工厂，根据角色生成不同配置的Creep
+class CreepFactory {
+  createCreep(role, roomName, config) {
+    const template = this.getTemplate(role, config);
+    const body = this.generateBody(template, availableEnergy);
+    return this.spawnCreep(body, role, roomName);
+  }
+}
+```
+
+#### 4.2.2 策略模式 - 能量分配
+```javascript
+// 能量分配策略，根据不同情况使用不同策略
+class EnergyAllocationStrategy {
+  constructor(strategy) {
+    this.strategy = strategy; // 'balanced', 'emergency', 'growth'
+  }
+  
+  allocate(demands, available) {
+    return this.strategy.allocate(demands, available);
+  }
+}
+```
+
+#### 4.2.3 观察者模式 - 状态监控
+```javascript
+// 状态监控，观察游戏状态变化
+class GameStateObserver {
+  constructor() {
+    this.observers = [];
+  }
+  
+  subscribe(observer) {
+    this.observers.push(observer);
+  }
+  
+  notify(state) {
+    this.observers.forEach(observer => observer.update(state));
+  }
+}
+```
+
+#### 4.2.4 状态模式 - 角色行为
+```javascript
+// 角色行为状态机
+class BehaviorStateMachine {
+  constructor(creep) {
+    this.creep = creep;
+    this.currentState = new IdleState(this);
+  }
+  
+  tick() {
+    this.currentState.execute();
+  }
+  
+  changeState(state) {
+    this.currentState = state;
+  }
+}
+```
+
+### 4.3 性能优化策略
+
+#### 4.3.1 CPU优化
+1. **计算分布**: 重计算分布到多个tick
+2. **缓存机制**: 缓存路径计算结果
+3. **批量操作**: 批量API调用减少开销
+4. **条件执行**: 非必要计算跳过
+
+#### 4.3.2 内存优化
+1. **结构化存储**: 使用高效数据结构
+2. **定期清理**: 定时清理无效数据
+3. **数据压缩**: 压缩存储的历史数据
+4. **按需加载**: 延迟加载非必要数据
+
+### 4.4 错误处理策略
+
+#### 4.4.1 错误分类
+| 错误类型 | 处理策略 | 恢复机制 |
+|----------|----------|----------|
+| **资源错误** (能量不足) | 降级运行，优先保障核心 | 等待恢复，调整策略 |
+| **API错误** (调用失败) | 重试机制，缓存结果 | 使用缓存，跳过操作 |
+| **逻辑错误** (算法错误) | 日志记录，安全恢复 | 回滚状态，使用备用算法 |
+| **系统错误** (内存溢出) | 紧急清理，重启模块 | 内存清理，模块重启 |
+
+#### 4.4.2 恢复机制
+1. **优雅降级**: 非核心功能暂停
+2. **状态回滚**: 恢复到上一个稳定状态
+3. **模块隔离**: 错误不扩散到其他模块
+4. **自动恢复**: 检测到恢复条件后自动重启
+
+---
+
+## 5. 接口概要定义
+
+### 5.1 模块间接口
+
+#### 5.1.1 能量管理接口
+```javascript
+// 能量状态查询
+interface EnergyStatus {
+  available: number;
+  capacity: number;
+  sources: Array<SourceInfo>;
+  storages: Array<StorageInfo>;
+  demands: Array<DemandInfo>;
+}
+
+// 能量分配请求
+interface AllocationRequest {
+  purpose: string;  // 'spawn', 'build', 'upgrade', 'repair'
+  amount: number;
+  priority: number; // 1-10
+  urgency: number;  // 1-5
+}
+
+// 能量分配结果
+interface AllocationResult {
+  success: boolean;
+  allocated: number;
+  remaining: number;
+  reason?: string;
+}
+```
+
+#### 5.1.2 Creep管理接口
+```javascript
+// Creep生成请求
+interface SpawnRequest {
+  role: string;      // 'harvester', 'builder', 'upgrader'
+  roomName: string;
+  priority: number;  // 1-10
+  config?: CreepConfig;
+}
+
+// Creep生成结果
+interface SpawnResult {
+  success: boolean;
+  creepName?: string;
+  body?: Array<BodyPartConstant>;
+  cost?: number;
+  error?: string;
+}
+
+// Creep状态
+interface CreepStatus {
+  name: string;
+  role: string;
+  ticksToLive: number;
+  store: StoreDefinition;
+  task?: string;
+  state?: string;
+}
+```
+
+#### 5.1.3 角色管理接口
+```javascript
+// 任务分配
+interface TaskAssignment {
+  creepName: string;
+  taskId: string;
+  taskType: string;
+  targetId: string;
+  priority: number;
+}
+
+// 行为状态
+interface BehaviorState {
+  creepName: string;
+  currentState: string;
+  previousState: string;
+  taskProgress?: number;
+  efficiency?: number;
+}
+
+// 效率报告
+interface EfficiencyReport {
+  roomName: string;
+  period: number; // tick数
+  tasksCompleted: number;
+  tasksFailed: number;
+  averageEfficiency: number;
+  bottlenecks: Array<string>;
+}
+```
+
+### 5.2 服务接口
+
+#### 5.2.1 配置服务接口
+```javascript
+interface ConfigService {
+  get(key: string, defaultValue?: any): any;
+  set(key: string, value: any): boolean;
+  has(key: string): boolean;
+  delete(key: string): boolean;
+  getAll(): object;
+}
+```
+
+#### 5.2.2 日志服务接口
+```javascript
+interface LogService {
+  debug(message: string, data?: any): void;
+  info(message: string, data?: any): void;
+  warn(message: string, data?: any): void;
+  error(message: string, data?: any): void;
+  
+  getLogs(level?: string, limit?: number): Array<LogEntry>;
+  clearLogs(): void;
+}
+```
+
+#### 5.2.3 监控服务接口
+```javascript
+interface MonitorService {
+  monitorRoom(roomName: string): MonitorData;
+  alert(level: string, message: string, data?: any): void;
+  getAlerts(limit?: number): Array<Alert>;
+  clearResolvedAlerts(): void;
+  
+  generateReport(roomName: string, period: number): Report;
+}
+```
+
+### 5.3 数据接口
+
+#### 5.3.1 内存数据结构
+```javascript
+// 房间状态数据
+interface RoomStateData {
+  energy: {
+    available: number;
+    capacity: number;
+    trend: Array<number>;
+  };
+  creeps: {
+    count: number;
+    byRole: Record<string, number>;
+    efficiency: Record<string, number>;
+  };
+  structures: {
+    count: number;
+    byType: Record<string, number>;
+    health: Record<string, number>;
+  };
+}
+
+// 配置数据
+interface ConfigData {
+  creepTemplates: Record<string, CreepTemplate>;
+  buildingLayout: BuildingLayout;
+  energyPriorities: Record<string, number>;
+  behaviorConfig: BehaviorConfig;
+}
+
+// 历史数据
+interface HistoricalData {
+  energyTrend: Array<{ tick: number, value: number }>;
+  creepStats: Array<CreepStat>;
+  performance: Array<PerformanceMetric>;
+}
+```
+
+#### 5.3.2 数据访问接口
+```javascript
+interface DataAccess {
+  // 状态数据
+  getRoomState(roomName: string): RoomStateData;
+  updateRoomState(roomName: string, state: Partial<RoomStateData>): void;
+  
+  // 配置数据
+  getConfig(): ConfigData;
+  updateConfig(config: Partial<ConfigData>): void;
+  
+  // 历史数据
+  getHistory(roomName: string, type: string, limit?: number): Array<any>;
+  addHistory(roomName: string, type: string, data: any): void;
+  
+  // 监控数据
+  getMonitorData(roomName: string): MonitorData;
+  addMonitorData(roomName: string, data: MonitorData): void;
+}
+```
+
+---
+
+## 6. 数据流设计
+
+### 6.1 主数据流
+
+#### 6.1.1 Tick处理流程
+```
+开始tick
+    ↓
+收集游戏状态
+    ↓
+分析房间需求
+    ↓
+制定决策计划
+    ↓
+执行游戏指令
+    ↓
+更新系统状态
+    ↓
+结束tick
+```
+
+#### 6.1.2 能量管理数据流
+```
+检测能量状态
+    ↓
+分析能量需求
+    ↓
+分配采集任务
+    ↓
+监控能量流动
+    ↓
+调整分配策略
+    ↓
+记录能量数据
+```
+
+#### 6.1.3 Creep管理数据流
 ```
 分析Creep需求
     ↓
@@ -573,6 +1098,4 @@ CodeReviewProcess {
 
 #### 10.3.2 文档质量标准
 | 质量维度 | 标准 | 检查方法 |
-|----------|------|----------|
-| **完整性** | 覆盖所有必要内容 | 文档审查清单 |
-| **准确性** | 信息准确无误 |
+|----------|------|
