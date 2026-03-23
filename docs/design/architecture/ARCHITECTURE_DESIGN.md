@@ -3,14 +3,16 @@
 ## 📋 文档信息
 - **项目名称**: Screeps Moss
 - **文档类型**: 架构设计文档（概要设计）
-- **版本**: v1.0
+- **版本**: v1.1
 - **创建日期**: 2026-03-22
-- **最后更新**: 2026-03-22
+- **最后更新**: 2026-03-23
 - **负责人**: Moss (OpenClaw AI)
-- **状态**: 设计中
+- **状态**: 已评审，根据评审意见更新
+- **评审结论**: 有条件通过，需明确版本与架构对应关系
 - **关联文档**: 
   - `REQUIREMENTS_ANALYSIS.md` (v2.0) - 需求分析
-  - `DETAILED_DESIGN.md` (v1.0) - 详细设计
+  - `SYSTEM_ANALYSIS.md` (v2.0) - 系统分析
+  - `DETAILED_DESIGN.md` (v1.0) - 详细设计（进行中）
 
 ---
 
@@ -41,6 +43,28 @@
 | **API限制** | 操作效率受限 | 批量操作，异步处理，API优化 |
 | **实时性** | 必须在tick内完成 | 任务调度，超时处理，降级策略 |
 
+### 1.4 版本与架构对应关系
+根据需求分析文档的版本规划，架构设计支持渐进式实现：
+
+#### v1.0 核心功能阶段
+- **架构完整性**: 完整四层架构设计
+- **应用层**: RoomManager完整实现，GlobalCoordinator框架接口
+- **业务层**: EnergyManager, CreepManager, RoleManager基础实现
+- **服务层**: ConfigService, MemoryService, LogService基础
+- **数据层**: GameState, ConfigData基础结构
+
+#### v1.5 功能完善阶段
+- **业务层**: BuildingManager, DefenseManager完善
+- **服务层**: MonitorService, ProfilerService实现
+- **数据层**: HistoricalData, MonitorData完善
+
+#### v2.0 多房间扩展阶段
+- **应用层**: GlobalCoordinator完整功能实现
+- **跨房间**: 资源协调、策略同步、全局监控
+- **扩展性**: 插件化架构完整实现
+
+**设计原则**: 接口先行，框架完整，功能渐进
+
 ---
 
 ## 2. 系统总体架构
@@ -50,7 +74,7 @@
 ┌─────────────────────────────────────────────────┐
 │               应用层 (Application Layer)        │
 │  • 房间管理器 (RoomManager)                     │
-│  • 全局协调器 (GlobalCoordinator) - 未来扩展    │
+│  • 全局协调器 (GlobalCoordinator)               │
 ├─────────────────────────────────────────────────┤
 │               业务层 (Business Layer)           │
 │  • 能量管理器 (EnergyManager)                   │
@@ -77,10 +101,10 @@
 ### 2.2 架构组件说明
 
 #### 2.2.1 应用层组件
-| 组件 | 职责 | 关键特性 |
-|------|------|----------|
-| **RoomManager** | 房间生命周期管理 | 单房间实例，协调业务模块 |
-| **GlobalCoordinator** | 多房间全局协调 | 未来扩展，资源平衡，策略协调 |
+| 组件 | 职责 | 关键特性 | 实现阶段 |
+|------|------|----------|----------|
+| **RoomManager** | 房间生命周期管理 | 单房间实例，协调业务模块 | v1.0完整 |
+| **GlobalCoordinator** | 多房间全局协调 | 资源平衡，策略协调，跨房间调度 | v1.0框架，v2.0完整 |
 
 #### 2.2.2 业务层组件
 | 组件 | 职责 | 关键特性 |
@@ -652,6 +676,7 @@ interface InterRoomCommunication {
 }
 
 // 全局协调器接口
+// 版本规划: v1.0框架接口设计，v2.0完整功能实现
 interface GlobalCoordinator {
   // 房间管理
   addRoom(roomName: string): Promise<boolean>;
