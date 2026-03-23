@@ -1,18 +1,30 @@
 # Screeps Moss 项目 - 架构设计文档（概要设计）
 
+# Screeps Moss 项目 - 架构设计文档（概要设计）
+
 ## 📋 文档信息
 - **项目名称**: Screeps Moss
 - **文档类型**: 架构设计文档（概要设计）
-- **版本**: v1.1
+- **版本**: v1.2
 - **创建日期**: 2026-03-22
 - **最后更新**: 2026-03-23
 - **负责人**: Moss (OpenClaw AI)
-- **状态**: 已评审，根据评审意见更新
-- **评审结论**: 有条件通过，需明确版本与架构对应关系
+- **状态**: 根据软件工程方法论重新评审后更新
+- **评审记录**: 
+  - 2026-03-23 09:32: 第一次评审（有条件通过）
+  - 2026-03-23 09:43: 软件工程方法论重新评审（有条件通过，需重大改进）
 - **关联文档**: 
-  - `REQUIREMENTS_ANALYSIS.md` (v2.0) - 需求分析
-  - `SYSTEM_ANALYSIS.md` (v2.0) - 系统分析
+  - `REQUIREMENTS_ANALYSIS.md` (v2.0) - 需求分析（已批准）
+  - `SYSTEM_ANALYSIS.md` (v2.0) - 系统分析（已批准）
   - `DETAILED_DESIGN.md` (v1.0) - 详细设计（进行中）
+  - `docs/reviews/ARCHITECTURE_REVIEW_CHECKLIST.md` - 评审检查清单
+
+## 📝 修改记录
+| 版本 | 日期 | 修改内容 | 修改人 |
+|------|------|----------|--------|
+| v1.0 | 2026-03-22 | 初始版本创建 | Moss |
+| v1.1 | 2026-03-23 | 根据第一次评审意见更新：明确版本与架构对应关系 | Moss |
+| v1.2 | 2026-03-23 | 根据软件工程方法论重新评审更新：<br>1. 补充FR-010自动化部署系统设计<br>2. 增加v3.0智能优化架构规划<br>3. 补充业务层模块接口定义<br>4. 统一MemoryManager/MemoryService命名<br>5. 明确DefenseManager需求来源<br>6. 完善异常告警系统设计 | Moss |
 
 ---
 
@@ -35,7 +47,29 @@
 | **接口隔离** | 客户端不应依赖不需要的接口 | 细粒度接口设计 |
 | **迪米特法则** | 最少知识原则 | 减少模块间直接依赖 |
 
-### 1.3 技术约束应对
+### 1.3 需求追溯
+基于需求分析文档v2.0，架构设计确保所有需求得到覆盖：
+
+#### 功能需求覆盖
+| 需求ID | 需求名称 | 架构模块 | 实现阶段 | 状态 |
+|--------|----------|----------|----------|------|
+| FR-001 | 能量管理系统 | EnergyManager | v1.0 | ✅ 覆盖 |
+| FR-002 | Creep生成系统 | CreepManager | v1.0 | ✅ 覆盖 |
+| FR-003 | 角色行为系统 | RoleManager | v1.0 | ✅ 覆盖 |
+| FR-004 | 建筑管理系统 | BuildingManager | v1.5 | ✅ 覆盖 |
+| FR-005 | 内存管理系统 | MemoryService | v1.0 | ✅ 覆盖（统一命名） |
+| FR-006 | 状态监控系统 | MonitorService | v1.5 | ✅ 覆盖 |
+| FR-007 | 性能监控系统 | ProfilerService | v1.5 | ✅ 覆盖 |
+| FR-008 | 异常告警系统 | MonitorService.alert() | v1.5 | ✅ 明确覆盖 |
+| FR-009 | 日志记录系统 | LogService | v1.0 | ✅ 覆盖 |
+| FR-010 | 自动化部署系统 | DeploymentService | v3.0 | ✅ 新增覆盖 |
+
+#### 非功能需求覆盖
+- **NFR-014 多房间扩展**: GlobalCoordinator (v2.0)
+- **NFR-015 配置驱动**: ConfigService (v1.0)
+- **NFR-016 插件化扩展**: PluginManager (v2.0)
+
+### 1.4 技术约束应对
 | 约束 | 影响 | 架构应对策略 |
 |------|------|--------------|
 | **CPU限制** | 算法复杂度受限 | 分层计算，任务优先级，缓存机制 |
@@ -63,6 +97,12 @@
 - **跨房间**: 资源协调、策略同步、全局监控
 - **扩展性**: 插件化架构完整实现
 
+#### v3.0 智能优化阶段
+- **智能系统**: AIService智能优化服务
+- **学习能力**: 行为模式学习，策略优化
+- **预测分析**: 需求预测，资源规划
+- **自动化部署**: DeploymentService自动化部署系统
+
 **设计原则**: 接口先行，框架完整，功能渐进
 
 ---
@@ -89,6 +129,8 @@
 │  • 日志服务 (LogService)                        │
 │  • 监控服务 (MonitorService)                    │
 │  • 性能服务 (ProfilerService)                   │
+│  • 智能服务 (AIService) - v3.0                  │
+│  • 部署服务 (DeploymentService) - v3.0          │
 ├─────────────────────────────────────────────────┤
 │               数据层 (Data Layer)               │
 │  • 游戏状态数据 (GameState)                     │
@@ -107,22 +149,24 @@
 | **GlobalCoordinator** | 多房间全局协调 | 资源平衡，策略协调，跨房间调度 | v1.0框架，v2.0完整 |
 
 #### 2.2.2 业务层组件
-| 组件 | 职责 | 关键特性 |
-|------|------|----------|
-| **EnergyManager** | 能量采集、存储、分配 | 供应链优化，优先级调度 |
-| **CreepManager** | Creep生成、管理 | 需求分析，生命周期管理 |
-| **RoleManager** | 角色分配、任务调度 | 状态机管理，效率优化 |
-| **BuildingManager** | 建筑规划、建造、维护 | 自动布局，优先级建造 |
-| **DefenseManager** | 入侵检测、防御 | 威胁评估，自动响应 |
+| 组件 | 职责 | 关键特性 | 需求来源 | 实现阶段 |
+|------|------|----------|----------|----------|
+| **EnergyManager** | 能量采集、存储、分配 | 供应链优化，优先级调度 | FR-001 | v1.0 |
+| **CreepManager** | Creep生成、管理 | 需求分析，生命周期管理 | FR-002 | v1.0 |
+| **RoleManager** | 角色分配、任务调度 | 状态机管理，效率优化 | FR-003 | v1.0 |
+| **BuildingManager** | 建筑规划、建造、维护 | 自动布局，优先级建造 | FR-004 | v1.5 |
+| **DefenseManager** | 入侵检测、防御 | 威胁评估，自动响应 | 隐含需求（安全防护） | v1.5 |
 
 #### 2.2.3 服务层组件
-| 组件 | 职责 | 关键特性 |
-|------|------|----------|
-| **ConfigService** | 配置管理 | 配置加载，验证，热更新 |
-| **MemoryService** | 内存管理 | 清理，持久化，压缩 |
-| **LogService** | 日志记录 | 分级日志，结构化，查询 |
-| **MonitorService** | 状态监控 | 实时监控，告警，报告 |
-| **ProfilerService** | 性能分析 | 性能监控，优化建议 |
+| 组件 | 职责 | 关键特性 | 需求来源 | 实现阶段 |
+|------|------|----------|----------|----------|
+| **ConfigService** | 配置管理 | 配置加载，验证，热更新 | NFR-015 | v1.0 |
+| **MemoryService** | 内存管理 | 清理，持久化，压缩 | FR-005 | v1.0 |
+| **LogService** | 日志记录 | 分级日志，结构化，查询 | FR-009 | v1.0 |
+| **MonitorService** | 状态监控 | 实时监控，告警，报告 | FR-006, FR-008 | v1.5 |
+| **ProfilerService** | 性能分析 | 性能监控，优化建议 | FR-007 | v1.5 |
+| **AIService** | 智能优化 | 行为学习，策略优化，预测分析 | v3.0智能优化 | v3.0 |
+| **DeploymentService** | 自动化部署 | 代码部署，配置同步，版本管理 | FR-010 | v3.0 |
 
 ### 2.3 架构视图
 
@@ -415,6 +459,91 @@ interface EfficiencyReport {
 }
 ```
 
+#### 5.1.4 建筑管理接口
+```javascript
+// 建筑布局
+interface BuildingLayout {
+  roomName: string;
+  rcl: number;
+  structures: Array<StructurePlan>;
+  priority: number;
+}
+
+// 结构计划
+interface StructurePlan {
+  type: string;
+  position: { x: number, y: number };
+  priority: number;
+  condition?: 'planned' | 'under_construction' | 'completed';
+}
+
+// 建筑管理接口
+interface BuildingManager {
+  // 布局规划
+  planLayout(roomName: string, rcl: number): BuildingLayout;
+  validateLayout(layout: BuildingLayout): boolean;
+  
+  // 建造管理
+  constructStructures(roomName: string): Array<ConstructionResult>;
+  getConstructionProgress(roomName: string): ConstructionProgress;
+  
+  // 维护管理
+  repairStructures(roomName: string): Array<RepairResult>;
+  getStructureHealth(roomName: string): StructureHealthReport;
+  
+  // 升级管理
+  upgradeController(roomName: string): UpgradeStatus;
+  getUpgradeEfficiency(roomName: string): number;
+}
+```
+
+#### 5.1.5 防御管理接口
+```javascript
+// 威胁评估
+interface ThreatAssessment {
+  roomName: string;
+  threatLevel: 'low' | 'medium' | 'high' | 'critical';
+  threatSources: Array<ThreatSource>;
+  recommendedActions: Array<string>;
+}
+
+// 威胁源
+interface ThreatSource {
+  type: 'hostile_creep' | 'hostile_structure' | 'invader' | 'other';
+  position: { x: number, y: number };
+  strength: number;
+  distance: number;
+}
+
+// 防御策略
+interface DefenseStrategy {
+  roomName: string;
+  strategyType: 'passive' | 'active' | 'evacuation';
+  towers: Array<TowerAssignment>;
+  creeps: Array<CreepAssignment>;
+  walls: Array<WallPriority>;
+}
+
+// 防御管理接口
+interface DefenseManager {
+  // 威胁检测
+  assessThreats(roomName: string): ThreatAssessment;
+  monitorRoomSecurity(roomName: string): SecurityStatus;
+  
+  // 防御部署
+  deployDefenses(roomName: string, strategy: DefenseStrategy): DeploymentResult;
+  adjustDefenseStrategy(roomName: string, newThreatLevel: string): boolean;
+  
+  // 应急响应
+  handleInvasion(roomName: string): EmergencyResponse;
+  evacuateRoom(roomName: string): EvacuationResult;
+  
+  // 安全报告
+  getSecurityReport(roomName: string): SecurityReport;
+  getDefenseEfficiency(roomName: string): DefenseEfficiency;
+}
+```
+
 ### 5.2 服务接口
 
 #### 5.2.1 配置服务接口
@@ -450,6 +579,109 @@ interface MonitorService {
   clearResolvedAlerts(): void;
   
   generateReport(roomName: string, period: number): Report;
+}
+```
+
+#### 5.2.4 性能服务接口
+```javascript
+interface ProfilerService {
+  startProfiling(sessionId: string): boolean;
+  stopProfiling(sessionId: string): ProfileData;
+  
+  measureCPU(operation: string, func: Function): CPUMetrics;
+  getPerformanceMetrics(roomName: string): PerformanceMetrics;
+  
+  identifyBottlenecks(): Array<Bottleneck>;
+  suggestOptimizations(): Array<OptimizationSuggestion>;
+  
+  getResourceUsage(): ResourceUsage;
+  monitorMemoryGrowth(): MemoryGrowthReport;
+}
+```
+
+#### 5.2.5 智能服务接口 (v3.0)
+```javascript
+// 学习数据
+interface LearningData {
+  patterns: Array<BehaviorPattern>;
+  predictions: Array<Prediction>;
+  optimizations: Array<Optimization>;
+}
+
+// 行为模式
+interface BehaviorPattern {
+  type: string;
+  conditions: Array<string>;
+  actions: Array<string>;
+  successRate: number;
+  efficiency: number;
+}
+
+// 智能服务接口
+interface AIService {
+  // 学习能力
+  learnFromBehavior(data: BehaviorData): LearningResult;
+  identifyPatterns(roomName: string): Array<BehaviorPattern>;
+  updateModel(newData: TrainingData): boolean;
+  
+  // 预测分析
+  predictEnergyDemand(roomName: string, horizon: number): DemandPrediction;
+  forecastCreepNeeds(roomName: string): NeedsForecast;
+  estimateCompletionTime(task: string): TimeEstimate;
+  
+  // 优化建议
+  suggestStrategy(roomName: string): StrategySuggestion;
+  optimizeResourceAllocation(roomName: string): AllocationPlan;
+  recommendImprovements(): Array<ImprovementRecommendation>;
+  
+  // 自适应调整
+  adaptToChanges(changeData: ChangeData): AdaptationResult;
+  selfOptimize(): OptimizationReport;
+}
+```
+
+#### 5.2.6 部署服务接口 (v3.0)
+```javascript
+// 部署配置
+interface DeploymentConfig {
+  version: string;
+  target: 'main' | 'sim' | 'pserver';
+  modules: Array<string>;
+  rollbackOnFailure: boolean;
+  validationRules: Array<ValidationRule>;
+}
+
+// 部署状态
+interface DeploymentStatus {
+  deploymentId: string;
+  version: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'failed' | 'rolled_back';
+  startTime: number;
+  endTime?: number;
+  errors?: Array<string>;
+}
+
+// 部署服务接口
+interface DeploymentService {
+  // 部署管理
+  deploy(config: DeploymentConfig): DeploymentStatus;
+  rollback(deploymentId: string): boolean;
+  getDeploymentStatus(deploymentId: string): DeploymentStatus;
+  
+  // 版本控制
+  listVersions(): Array<VersionInfo>;
+  compareVersions(v1: string, v2: string): VersionDiff;
+  validateVersion(version: string): ValidationResult;
+  
+  // 配置同步
+  syncConfig(source: string, target: string): SyncResult;
+  backupConfig(backupName: string): boolean;
+  restoreConfig(backupName: string): boolean;
+  
+  // 监控报告
+  getDeploymentHistory(limit?: number): Array<DeploymentRecord>;
+  generateDeploymentReport(): DeploymentReport;
+  monitorDeploymentHealth(): HealthStatus;
 }
 ```
 
